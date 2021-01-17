@@ -8,6 +8,23 @@ alter table posts_profiles change post_GUID ID BIGINT UNSIGNED NOT NULL;
 select * from target_types;
 alter table messages add column ID BIGINT UNSIGNED;
 
+
+-- vk.posts definition
+Drop Table IF EXISTS posts;
+CREATE TABLE `posts` (
+  `profile_id` bigint unsigned NOT NULL COMMENT 'Ссылка на пользователя, который создал пост',
+  `description` text COMMENT 'Бла-бла',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Время создания строки',
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Время обновления строки',
+  `ID` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `parent_post_id` bigint unsigned DEFAULT NULL,
+  `community_id` bigint unsigned DEFAULT NULL,
+  `header` varchar(255) DEFAULT NULL,
+  `is_public` tinyint(1) DEFAULT '1',
+  `is_archived` tinyint(1) DEFAULT '0',
+  UNIQUE KEY `ID` (`ID`)
+);
+
 drop table if exists likes;
 CREATE TABLE likes (
 id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
