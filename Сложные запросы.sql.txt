@@ -1,0 +1,51 @@
+INSERT into orders (user_id) select  id from users order by rand();
+INSERT  into orders_products (order_id,product_id,total) 
+select * from ((select id from orders order by RAND() limit 1) rt1,
+(select id from products order by rand() limit 1) rt2,
+(select FLOOR(1+Rand()*100) from orders) rt3);
+
+
+-- exercise 1.
+select 
+	users.id ,MAX(users.name),
+	GROUP_CONCAT(orders.id) orderid, 
+	count(orders.id)  
+from users 
+join orders
+	on users.id  = orders .user_id
+group by users .id ;
+
+-- exercise 2
+select 
+	products.name, 
+	products.description , 
+	products .price , 
+	catalogs.name 
+from products 
+left join catalogs 
+	on products.catalog_id  = catalogs.id ;
+	
+-- exercise 3
+
+-- DDL Tables
+create table if not exists flights 
+(
+Id SERIAL,
+`from` VARCHAR(100) NOT NULL,
+`to` VARCHAR(100) NOT NULL
+);
+create table if not exists cities 
+(
+LABEL VARCHAR(100) NOT NULL,
+NAME VARCHAR(100) NOT NULL
+);
+
+-- DML DATA
+insert into flights(`from`,`to`) values ('moscow','omsk'),('novgorod','kazan'),('irkutsk','moscow'),('omsk','irkutsk'),('moscow','kazan');
+insert into cities values('moscow','Москва'),('irkutsk','Иркутск'),('kazan','Казань'),('omsk','Омск'),('novgorod','Новгород');
+
+-- DML SELECT. ANSWER
+select c1.NAME as `from`, c2.name as `to` from flights 
+join cities c1 on c1.label = flights.`from`
+join cities c2 on c2.label = flights.`to`
+order by `from`;
