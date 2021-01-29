@@ -1,0 +1,72 @@
+-- Triggers.Functions. exercise 1
+
+
+drop function if exists hello;
+Create Function hello(dat DATETIME)
+returns VARCHAR(100) NO SQL
+begin 
+	Declare 
+	res VARCHAR(100);
+	select 
+	case 
+	when HOUR(dat) between 6 and 11 then 'Good morning'
+	when HOUR(dat) between 12 and 17 then 'Good afternoon'
+	when HOUR(dat) between 18 and 23 then 'Good evening'
+	else 'Good night'
+end into res;
+return res;
+end;
+
+select hello(CURRENT_TIMESTAMP()), CURRENT_TIMESTAMP();
+
+-- exercise 2
+
+drop trigger if exists check_null_values_insert;
+drop trigger if exists check_null_values_update;
+
+create trigger check_null_values_insert before INSERT on products
+for each row 
+begin 
+if 
+(NEW.name is NULL and new.description is null) then 
+signal SQLSTATE '45000' set message_text = 'NOT ALLOWED TO USE NULL VALUE WITH BOTH NAME, DESCR';
+elseif 
+new.catalog_id is null then 
+set new.catalog_id = (select MIN(c2.id) from catalogs c2);
+end if;
+end;
+
+create trigger check_null_values_update before UPDATE on products
+for each row 
+begin 
+if 
+(NEW.name is NULL and new.description is null) then 
+signal SQLSTATE '45000' set message_text = 'NOT ALLOWED TO USE NULL VALUE WITH BOTH NAME, DESCR';
+elseif 
+new.catalog_id is null then 
+set new.catalog_id = (select MIN(c2.id) from catalogs c2);
+end if;
+end;
+
+insert into products (name,description,price,catalog_id) values (null,null,100,1);
+insert into products (name,description,price,catalog_id) values ('DEXP M100-PI',null,100,null);
+insert into products (name,description,price,catalog_id) values ('SAMSUNG PSB928','AMOLED HD Touchscreen ',53.992,3);
+select * from products p ;
+
+-- exercise 3. OK GOOGLE VARIANT
+
+CREATE procedure fibonacci(num INT)
+begin 
+	declare
+	prev, nextval,i int;
+	set i = 0, prev = 1, nextval = 0;
+while i < num 
+DO
+SET prev := prev + nextval;
+SET nextval := prev - nextval;
+set i = i+1;
+end while;
+select nextval;
+end;
+
+call fibonacci(8) ;
