@@ -1,0 +1,25 @@
+-- SQLadmin. exercise 1
+
+create user 'lesson5_read'@'%' identified by 'READ';
+GRANT SELECT on lesson5.* to 'lesson5_read'@'%';
+
+create user 'lesson5_full'@'localhost' identified by 'FULL';
+GRANT ALL on lesson5 to 'lesson5_full'@'localhost';
+
+-- exercise 2 
+
+DROP TABLE IF EXISTS accounts;
+CREATE TABLE accounts (
+  id SERIAL PRIMARY KEY,
+  nam VARCHAR(100) UNIQUE NOT NULL,
+  password VARCHAR(50) NOT NULL
+) ;
+
+INSERT  into accounts(nam,password) values('A','AAAA1111'),('B','BBBB2222'),('C','CCCC3333');
+Create VIEW accounts_read as 
+(
+select id, nam from accounts
+);
+create user 'accounts_read'@'localhost' identified by 'acc';
+grant select (id, nam) on lesson5.accounts_read to 'accounts_read'@'localhost';
+alter user 'accounts_read'@'localhost' with max_queries_per_hour 1;
