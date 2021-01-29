@@ -1,0 +1,48 @@
+-- exercise 1
+
+-- variant 2 
+start transaction; 
+select  @target := MAX(id) from lesson5.users;
+INSERT  into lesson1.users (name,birthday_at) select name,birthday_at from lesson5.users where id  = @target;
+delete from lesson5.users where id  = @target;
+commit;
+\\
+
+select lesson5.users.* , 'transferfrom' from lesson5.users 
+union all 
+select lesson1.users.*,'transferto' from lesson1.users;
+
+-- exercise 2 
+
+Drop VIEW if exists  Product_Catalogs;
+Create VIEW Product_Catalogs 
+as 
+(
+select catalogs.name catalog,p1.name product, p1.price, p2.price as AVG_price
+from products p1
+join catalogs 
+on 
+	p1.catalog_id = catalogs.id 
+join (select FLOOR(AVG(price)) price from products) p2 
+on 
+	p1.price >p2.price
+);
+select * from Product_Catalogs;
+
+
+-- exercise 3
+with recursive monthn(n) as 
+(
+select 1
+union all
+select n+1 from monthn where n<31
+)
+select str_to_date(CONCAT_WS('-','2018','08',LPAD(n,2,'0')),'%Y-%m-%d') as allmonth, 
+if(str_to_date(CONCAT_WS('-','2018','08',LPAD(n,2,'0')),'%Y-%m-%d')  in ('2018-08-01', '2018-08-16','2018-08-17','2018-08-04'),1,0) getit 
+from monthn;
+
+-- exercise 4
+update products  set created_at = created_at  + INTERVAL ID DAY;
+select * from products p2 ;
+delete p from products p join (select created_at from products order by created_at desc limit 2,1) as deldate 
+on p.created_at <=deldate.created_at where p.catalog_id <>1;
