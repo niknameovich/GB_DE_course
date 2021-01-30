@@ -1,0 +1,59 @@
+
+-- messages
+drop index messages_imprec_idx on messages;
+Create index messages_imprec_idx on messages(is_important,is_received); 
+
+-- likes
+drop index likes_profiletype_idx on likes;
+Create index likes_profiletype_idx USING BTREE on likes(profile_id, target_type_id, target_id); 
+-- using to search all like for target with equality
+Create index likes_target_idx USING HASH on likes(target_id); 
+
+
+-- posts
+Create UNIQUE index posts_profilecreated_idx USING BTREE on posts(profile_id,created_at); 
+-- to search all posts with same header or (TAG)
+-- TODO think about adding geodata to post
+Create index posts_header_idx USING HASH on posts(header);
+-- search all comments to main post
+Create index posts_parent USING HASH on posts(parent_post_id);
+-- search all posts in community
+Create index posts_community USING HASH on posts(community_id);
+-- search post starts with * 
+Create index posts_description on posts(description(50));
+
+-- profiles
+Create UNIQUE index profiles_commondata_idx USING BTREE on profiles (email,phone, city_id); 
+create FULLTEXT INDEX profiles_description on profiles(description);
+create INDEX profiles_created on profiles(created_at);
+
+-- cities
+drop index cities_name on cities;
+create INDEX cities_name on cities(name(3));
+
+-- counties
+create INDEX countries_name on countries(name(3));
+create UNIQUE INDEX countries_code on countries(code);
+
+
+-- media_profiles
+-- fastening search to profiles main photo
+CREATE INDEX media_profiles_ismainphoto USING HASH on media_profiles (profile_id, ismainphoto);
+
+-- communities
+CREATE INDEX communities_name_created USING BTREE on communities (name, created_at);
+
+-- users
+-- for searches like - from users where CONCATWS() > < = 'value'
+CREATE INDEX users_fullname on users ((CONCAT_WS(' ',first_name,last_name)));
+CREATE INDEX users_birthday on users(birthday);
+CREATE INDEX users_fulldata on users(gender,birthday,first_name,last_name);
+
+-- relationships 
+CREATE INDEX relationships_myrels_idx USING BTREE on relationships(to_profile_id, status_id,created_at DESC);
+
+-- media 
+CREATE UNIQUE INDEX media_myloadedfiles on media(user_profile_id,media_type_id,filename);
+Create UNIQUE INDEX media_filename on media(filename);
+CREATE INDEX media_metadatakey on media ((CAST(metadata->>"$.owner" AS CHAR(30)) COLLATE utf8mb4_bin));
+
