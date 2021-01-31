@@ -1,0 +1,26 @@
+-- Dynamic SQL procedure
+
+drop procedure if exists bulk_insert_users;
+create procedure bulk_insert_users(IN num INT(100),in name_prefix CHAR(50))
+NOT DETERMINISTIC
+Begin 
+	declare i INT default 0;
+	declare	concat_val1 VARCHAR(100) default "('{1}'";
+	declare	concat_val2 VARCHAR(100) default ",'{1}')";
+
+set @bulk_insert := CONCAT('insert into users(name,birthday_at) values ',
+REPLACE(concat_val1,'{1}',concat(name_prefix,i)),
+REPLACE(concat_val2,'{1}',current_timestamp - interval i day));
+set i = i +1;
+while i < num DO
+set @bulk_insert := CONCAT(@bulk_insert,',',REPLACE(concat_val1,'{1}',concat(name_prefix,i)),REPLACE(concat_val2,'{1}',current_timestamp - interval i day)); 
+set i = i +1;
+end while ; 
+prepare stmt from @bulk_insert;
+execute stmt;
+deallocate prepare stmt;
+END;
+
+-- tests 
+call bulk_insert_users(1000,'bulk_user');
+select * from users;

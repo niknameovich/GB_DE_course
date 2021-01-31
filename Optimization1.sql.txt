@@ -1,0 +1,47 @@
+
+-- Создание таблицы логов
+create table logs 
+(
+table_name VARCHAR(50) NOT NULL,
+ID INT NOT NULL,
+name VARCHAR(255) NOT NULL,
+created_at DATETIME NOT NULL
+) 
+ENGINE = Archive;
+
+
+-- Создание триггеров для users,catalogs,products
+
+drop  trigger if exists users_log;
+CREATE TRIGGER users_log
+  AFTER INSERT ON lesson5.users
+  for each row
+  BEGIN
+		DECLARE  table_name VARCHAR(50) DEFAULT 'users';
+	insert into lesson5.logs values(table_name,new.id,new.name,CURRENT_TIMESTAMP);
+ END;
+ 
+CREATE TRIGGER catalogs_log
+  AFTER INSERT ON lesson5.catalogs 
+  for each row
+  BEGIN
+		DECLARE  table_name VARCHAR(50) DEFAULT 'catalogs';
+	insert into lesson5.logs values(table_name,new.id,new.name,CURRENT_TIMESTAMP);
+ END;
+ 
+CREATE TRIGGER products_log
+  AFTER INSERT ON lesson5.products 
+  for each row
+  BEGIN
+		DECLARE  table_name VARCHAR(50) DEFAULT 'products';
+	insert into lesson5.logs values(table_name,new.id,new.name,CURRENT_TIMESTAMP);
+ END;
+ 
+
+-- tests 
+
+insert into users (name,birthday_at) values ('testloguser',Current_timestamp - Interval 5 YEAR);
+insert into catalogs (name) values ('testlog1'),('testlog2');
+insert into products (name,description,price,catalog_id) values ('testlogproduct','for test',10,1);
+
+select users.* from users join logs on users.created_at = logs.created_at;
