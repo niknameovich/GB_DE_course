@@ -1,0 +1,134 @@
+select * from Areas a ;
+
+INSERT into Areas select MAX(Name)+1,point(10+rand()*80,50+rand()*10);
+
+update Areas set name = 'basement' where id = 67;
+update Areas set name = 'garden' where id = 71;
+update Areas set name = 'kitchen' where id = 72;
+update Areas set name = 'bathroom' where id = 73;
+update Areas set name = 'bedroom' where id = 74;
+update Areas set name = 'hall' where id = 75;
+update Areas set name = 'garage' where id = 76;
+update Areas set name = 'cabinet' where id = 77;
+update Areas set name = 'gate' where id = 78;
+update Areas set name = 'balcony' where id = 79;
+
+
+SELECT * from devices ;
+
+start transaction;
+select @area := 79;
+select DISTINCT @a:=MAX(ID) over (PARTITION by id_area) from devices where id_area=@area;
+UPDATE devices set parentid = @a where id_area = @area and ID<>@a;
+commit;
+
+
+start transaction;
+select @parentarea := 76;
+select @a:=MAX(parentid) from devices where id_area=@parentarea and parentid is not null;
+update devices set parentid = @a where id_area in (78,71) and parentid is null;
+commit;
+
+insert into devtypes (Name,description) 
+values 
+('lighting','Регулировка уровня освещенности в помещении, регулировка спектра освещения, автовключение/автовыключение освещения'),
+('Heating','Регулировка температуры воздуха в помещении, регулировка температуры воды в конвекторе, регулировка работы котельной'),
+('Cleaning','Поддержание конфорта в помещении, регулировка влажности и насыщенности воздуха О2, робот-пылесос, посудомоечная/стиральная машины '),
+('Cooking','Управление духовым шкафом, режимами работы холодильника, составление списка продуктов, кофеварка'),
+('relax','Управление освещенностью, домашним кинотеатром, ароматерапия'),
+('take a bath','Нагрев и подача воды, ароматизация ванной комнаты, поддержание комфортной температуры в бане/сауне'),
+('gardening','контроль параметров почвы, полив растений, подпитка удобрениями, вентиляция теплиц'),
+('Hello','Приветствие подключившегося пользователя'),
+('Sleep','режим сна устройств, поддержание достаточного уровня затемненности и влажности воздуха');
+
+
+select * from devtypes d2 ;
+delete from devtypes WHERE EXISTS (SELECT 1 WHERE devtypes.id < id and name=devtypes.name);
+
+insert into devices_passport (`DATA`) values 
+(JSON_OBJECT("Reference","Фоторезистор GL5528",
+"parameters",
+JSON_ARRAY(
+JSON_OBJECT("VOLTAGE","220"),
+JSON_OBJECT("PRECISION","0.01"),
+JSON_OBJECT("ENVIRONMENT","-30~+70")))),
+(JSON_OBJECT("Reference","BeeRT terneo 4820120220197",
+"parameters",
+JSON_ARRAY(
+JSON_OBJECT("VOLTAGE","220"),
+JSON_OBJECT("MINTEMP","5"),
+JSON_OBJECT("deltaperhour","30")))),
+(JSON_OBJECT("Reference","ЗВЛ-1000",
+"parameters",
+JSON_ARRAY(
+JSON_OBJECT("VOLTAGE","24"),
+JSON_OBJECT("PRECISION","3"),
+JSON_OBJECT("deltaperhour","20"))));
+
+insert into mechanisms (Id_type,id_device,Name,passport_id) 
+select (select id from devtypes order by rand() limit 1), 
+(select id from devices order by rand() limit 1),
+CONCAT('mech',FLOOR(1+rand()*100)),
+(select id from devices_passport order by rand() limit 1) 
+from devices;
+
+select * from mechanisms m ;
+
+
+insert into properties (Id_type,Name,DisplayAs) 
+select (select id from devtypes order by rand() limit 1), 
+CONCAT('PropertyName',FLOOR(1+rand()*100)),
+'Additional property data explaining importancy to control it'
+from mechanisms ;
+
+select Name,Id_type,count(name),count(Id_type) from properties p group by name,Id_type having COUNT(name) >1 ;
+
+delete properties from properties join properties p2 
+on p2.name = properties.name and p2.Id_type  = properties.Id_type  and p2.id < properties.id;
+
+insert into action_templates (name,displayas,id_type,priority)
+select  CONCAT('ActionName',FLOOR(1+rand()*100)),'Displayed info about action. Specification, profitance, something else',
+(select id from devtypes order by rand() limit 1), FLOOR(1+rand()*3) from Areas;
+
+update action_templates join action_templates at2 
+on action_templates.id_type = at2.id_type 
+set action_templates.parentid = at2.id
+where action_templates.id_type  = 33 and action_templates.id > at2.id;
+
+UPDATE action_templates set parentid =null where id = parentid ;
+
+select * from action_templates at2 order by id_type ;
+
+
+start transaction;
+select @mech:=id from mechanisms order by rand() limit 1;
+insert into devices_telemetry (Id_mech,Id_prop,value,Received_at)
+select 
+@mech,
+(select p.id from properties p join mechanisms m on p.Id_type  = m.Id_type and m.Id = @mech order by rand() limit 1),
+rand()*100,
+CURRENT_TIMESTAMP() - @mech DAY 
+from mechanisms ;
+commit; 
+
+start transaction;
+update devices_telemetry 
+set Received_at =  DATE_SUB(CURRENT_TIMESTAMP(),INTERVAL ABS(Id_mech - Floor(value*Id_mech)) DAY) ;
+update devices_telemetry 
+set Received_at =  DATE_SUB(CURRENT_TIMESTAMP(),INTERVAL ABS(Id_mech - Floor(value*Id_prop)) HOUR) ;
+delete devices_telemetry from
+devices_telemetry join devices_telemetry d2
+on devices_telemetry.Id_mech  = d2.Id_mech and d2.Id_prop  = devices_telemetry.Id_prop and devices_telemetry.Received_at = d2.Received_at 
+where devices_telemetry.value < d2.value ;
+commit;
+
+select Id_mech ,Id_prop , GROUP_CONCAT(value),COUNT(*) from devices_telemetry group by Id_mech ,Id_prop ,Received_at HAVING count(*)>1;
+
+set autocommit = 0;
+start transaction;
+select @prop:=propertyid,@act:=act_id,@area:=areaid from Areas_mechanisms_specification order by rand() limit 1;
+call set_new_action(@area,@act,@prop,FLOOR(20+rand()*100),FLOOR(rand()*10),CURRENT_TIMESTAMP() ,DATE_ADD(CURRENT_TIMESTAMP(),INTERVAL 5 HOUR));
+commit;
+
+
+
