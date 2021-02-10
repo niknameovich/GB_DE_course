@@ -1,0 +1,126 @@
+
+-- Просмотр телеметрии устройств по помещениям в рамках предшествующего дня с подсчетом смещения значений 
+
+CREATE VIEW areas_dayly_telemetry
+as 
+select 
+a.Name as area,
+d2.Name as typename,
+p.Name as property,
+AVG(dt.value) over ptype as averageval,
+MAX(dt.value) over ptype as maxval,
+dt.value as value,
+dt.value - LAG(dt.value,1,0) over ptype as delta,
+dt.Received_at 
+from Areas a 
+join devices d on a.ID  = d.id_area 
+join mechanisms m on d.ID = m.id_device 
+join devtypes d2 on d2.Id  = m.Id_type 
+join devices_telemetry dt on m.Id = dt.Id_mech and dt.Received_at > DATE_SUB(CURRENT_TIMESTAMP() , INTERVAL 1 DAY)
+join properties p on p.Id = dt.Id_prop 
+WINDOW ptype AS (PARTITION by a.ID,d2.Id,dt.Id_prop order by dt.Id_prop);
+
+-- спецификация на устройства напряжением 220 
+
+create view mechanisms_220_specification 
+as 
+select m.Name, 
+JSON_VALUE(dp.`DATA`,'$.Reference') as reference,
+dp.`DATA`->'$.parameters' as passport_parameters
+from mechanisms m 
+join devices_passport dp 
+on dp.ID = m.passport_id and JSON_VALUE(dp.`DATA`->'$.parameters','$[0].VOLTAGE') = 220;
+
+-- спецификация на устройства напряжением 24
+
+create view mechanisms_24_specification 
+as 
+select m.Name, 
+JSON_VALUE(dp.`DATA`,'$.Reference') as reference,
+dp.`DATA`->'$.parameters' as passport_parameters
+from mechanisms m 
+join devices_passport dp 
+on dp.ID = m.passport_id and JSON_VALUE(dp.`DATA`->'$.parameters','$[0].VOLTAGE') = 24;
+
+
+
+-- Добавление нового действия в расписание. Таблицы действий, расписания и лимитов в одной транзакции по курсору (все механизмы)
+
+DELIMITER //
+
+create procedure set_new_action(
+in area BIGINT UNSIGNED, 
+in template BIGINT UNSIGNED,
+in property BIGINT UNSIGNED, 
+in userval DOUBLE,
+in starttarget DATETIME, 
+in targetdate DATETIME, 
+in userdelta DOUBLE)
+begin
+declare break tinyint DEFAULT 0;
+declare ntype,mech BIGINT UNSIGNED;
+declare GUID,GUIDSCH VARBINARY(16);
+declare targetmech cursor for 
+select DISTINCT ams.m_id from Areas_mechanisms_specification ams  
+where ams.Id_type = (select at2.id_type from action_templates at2 where at2.Id = template) and ams.areaid = area;
+declare continue handler for not found set break = 1;
+DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; end;
+
+START TRANSACTION;
+set GUID = UUID_TO_BIN(UUID()); 
+
+insert into actions_running 
+(id,id_template,id_area,status) 
+values
+(GUID,template,area,IF(starttarget > current_timestamp(),0,1));
+open targetmech;
+while break =0 DO
+fetch targetmech into mech;
+select UUID_TO_BIN(UUID()) into GUIDSCH;
+insert into schedule 
+(Id_action,Start_at,End_at,id,id_mech) 
+values 
+(GUID,starttarget,targetdate,GUIDSCH,mech);
+insert into intervals 
+(id_schedule,Id_prop,targetvalue,delta)
+values 
+(GUIDSCH,property,userval,userdelta);
+end while;
+commit;
+end//
+
+-- перемещение данных телеметрии в архив при удалении или отключении устройства
+
+create trigger telemetrylog_disconnectmech before UPDATE on mechanisms
+for each row 
+begin 
+if 
+(NEW.disconnectedat is not NULL) then 
+insert into telemetry_log (id_mech,Property,value) 
+select NEW.id, p.Name,dt.value from devices_telemetry dt join properties p on p.Id = dt.Id_prop and dt.Id_mech = NEW.id;
+delete from devices_telemetry where Id_mech = NEW.id;
+end if;
+end;
+
+-- текущие действия в системе в разбивке по помещениям и подсчетом смещения значений
+
+create view currect_actions_specification
+as 
+select 
+a.Name , 
+dp.`DATA` ->'$.Reference' as mechanism_ref,
+p.Name as property,
+i.targetvalue,
+LAST_VALUE(dt.value) over() as current_value,
+dt.value - LAG(dt.value,1,dt.value) over () as lastdelta,
+ar.status 
+from 
+actions_running ar join schedule s on s.Id_action = ar.id join intervals i on i.id_schedule = s.id 
+join Areas a on a.ID = ar.id_area join mechanisms m on m.Id  = s.id_mech join properties p on p.Id  = i.Id_prop 
+join devices_passport dp on dp.ID = m.passport_id 
+join devices_telemetry dt on dt.Id_prop = i.Id_prop and dt.Id_mech = s.Id and dt.Received_at BETWEEN s.Start_at and s.End_at 
+where s.Start_at < CURRENT_TIMESTAMP();
+
+
+
+
