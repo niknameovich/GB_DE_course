@@ -1,0 +1,102 @@
+
+alter table mechanisms 
+add
+FOREIGN KEY mechanisms_passport_fk(passportid) 
+references devices_passport(id) 
+on delete restrict; 
+
+alter table mechanisms 
+add
+FOREIGN KEY device_mechanisms_fk(id_device) 
+references devices(id) 
+on delete cascade;
+
+alter table mechanisms 
+add
+FOREIGN KEY mechanisms_types_fk(id_type) 
+references devtypes(id) 
+on delete RESTRICT
+on UPDATE cascade;
+
+alter table properties 
+add
+FOREIGN KEY properties_types_fk(id_type) 
+references devtypes(id) 
+on UPDATE cascade;
+
+alter table action_templates 
+add
+FOREIGN KEY action_templates_types_fk(id_type) 
+references devtypes(id) 
+on UPDATE cascade;
+
+alter table action_templates 
+add
+FOREIGN KEY action_templates_parent_fk(parentid) 
+references action_templates(id) 
+on delete set null;
+
+alter table devices_telemetry 
+add
+FOREIGN KEY devices_telemetry_mechanisms_fk(id_mech) 
+references mechanisms(id) 
+on delete RESTRICT;
+
+alter table devices_telemetry 
+add
+FOREIGN KEY devices_telemetry_properties_fk(id_prop) 
+references properties(Id);
+
+alter table devices 
+add
+FOREIGN KEY area_devices(id_area) 
+references Areas(id)
+on delete restrict;
+
+alter table devices 
+add
+FOREIGN KEY parent_devices(parentid) 
+references devices(id)
+on delete set null;
+
+alter table actions_running 
+add
+FOREIGN KEY area_actions_running(id_area) 
+references Areas(id)
+on delete restrict;
+
+alter table actions_running 
+add
+FOREIGN KEY devices_actions_area(id_area) 
+references devices(id_area)
+on delete restrict;
+
+alter table actions_running 
+add
+FOREIGN KEY actions_running_templates(id_template) 
+references action_templates(id)
+on delete restrict;
+
+alter table schedule 
+add
+FOREIGN KEY schedule_mechanisms(id_mech) 
+references mechanisms(id)
+on delete cascade;
+
+alter table schedule 
+add
+FOREIGN KEY schedule_actions(id_action) 
+references actions_running(id)
+on delete cascade;
+
+alter table intervals 
+add
+FOREIGN KEY schedule_intervals(id_schedule) 
+references schedule(id)
+on delete cascade;
+
+alter table intervals 
+add
+FOREIGN KEY properties_intervals(id_prop) 
+references properties(id)
+on delete cascade;
