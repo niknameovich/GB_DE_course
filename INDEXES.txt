@@ -1,0 +1,36 @@
+create index devices_name_createdat 
+on devices ((UPPER(Name)),created_at);
+
+create index passport_json_parametr
+on devices_passport
+(id_devices,(CAST(DATA->>'$.parametr' as CHAR(50)) COLLATE utf8mb4_bin));
+
+CREATE UNIQUE index areas_name 
+on Areas (name(5));
+
+create SPATIAL index areas_coodinates 
+on Areas(coordinates);
+
+create index mechanisms_type
+on mechanisms (id_device,id_type);
+
+create fulltext index devtypes_text 
+on devtypes (description);
+
+create fulltext index templates_text 
+on action_templates (displayas);
+
+create unique index templates_parent_type
+on action_templates (parentid,name,id_type);
+
+create index templates_searchtypes
+on action_templates(id_type,priority);
+
+create index running_date
+on actions_running(created_at,terminated_at);
+
+create index running_updated_status
+on actions_running(updated_at,status);
+
+create index current_schedule
+on schedule(start_at DESC);
