@@ -1,0 +1,177 @@
+-- IOT_Course.Areas definition
+
+CREATE TABLE `Areas` (
+  `ID` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `Name` varchar(100) NOT NULL,
+  `coordinates` point NOT NULL,
+  `Created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY `ID` (`ID`),
+  UNIQUE KEY `areas_name` (`Name`(5)),
+  SPATIAL KEY `areas_coodinates` (`coordinates`)
+) ENGINE=InnoDB AUTO_INCREMENT=91 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+-- IOT_Course.devices_passport definition
+
+CREATE TABLE `devices_passport` (
+  `ID` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `DATA` json NOT NULL,
+  UNIQUE KEY `ID` (`ID`),
+  KEY `passport_json_parametr` (((cast(json_unquote(json_extract(`DATA`,_utf8mb4'$.parametr')) as char(50) charset utf8mb4) collate utf8mb4_bin)))
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+-- IOT_Course.devtypes definition
+
+CREATE TABLE `devtypes` (
+  `Id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `Name` varchar(200) NOT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  UNIQUE KEY `Id` (`Id`),
+  FULLTEXT KEY `devtypes_text` (`description`)
+) ENGINE=InnoDB AUTO_INCREMENT=37 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+-- IOT_Course.schedule definition
+
+CREATE TABLE `schedule` (
+  `Id_action` binary(16) NOT NULL,
+  `Start_at` datetime NOT NULL,
+  `End_at` datetime NOT NULL,
+  `TimeInterval` timestamp NULL DEFAULT NULL,
+  `id` binary(16) NOT NULL,
+  `id_mech` bigint unsigned NOT NULL,
+  UNIQUE KEY `id` (`id`),
+  KEY `schedule_mechanisms` (`id_mech`),
+  KEY `schedule_actions` (`Id_action`),
+  KEY `current_schedule` (`Start_at` DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+-- IOT_Course.telemetry_log definition
+
+CREATE TABLE `telemetry_log` (
+  `id_mech` bigint unsigned NOT NULL,
+  `Property` varchar(200) NOT NULL,
+  `value` double NOT NULL,
+  `created_at` datetime DEFAULT NULL
+) ENGINE=ARCHIVE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+-- IOT_Course.action_templates definition
+
+CREATE TABLE `action_templates` (
+  `Id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `Name` varchar(100) NOT NULL,
+  `displayas` text,
+  `parentid` bigint unsigned DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `id_type` bigint unsigned NOT NULL,
+  `priority` enum('low','medium','high') NOT NULL,
+  UNIQUE KEY `Id` (`Id`),
+  UNIQUE KEY `templates_parent_type` (`parentid`,`Name`,`id_type`),
+  KEY `action_templates_types_fk` (`id_type`),
+  FULLTEXT KEY `templates_text` (`displayas`),
+  CONSTRAINT `action_templates_ibfk_1` FOREIGN KEY (`id_type`) REFERENCES `devtypes` (`Id`) ON UPDATE CASCADE,
+  CONSTRAINT `action_templates_ibfk_2` FOREIGN KEY (`parentid`) REFERENCES `action_templates` (`Id`) ON DELETE SET NULL
+) ENGINE=InnoDB AUTO_INCREMENT=26 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+-- IOT_Course.devices definition
+
+CREATE TABLE `devices` (
+  `ID` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `Name` varchar(100) NOT NULL,
+  `Created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `id_area` bigint unsigned NOT NULL,
+  `parentid` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`ID`),
+  UNIQUE KEY `ID` (`ID`),
+  UNIQUE KEY `Name` (`Name`),
+  KEY `area_devices` (`id_area`),
+  KEY `parent_devices` (`parentid`),
+  KEY `devices_name_createdat` ((upper(`Name`)),`Created_at`),
+  CONSTRAINT `devices_ibfk_1` FOREIGN KEY (`id_area`) REFERENCES `Areas` (`ID`) ON DELETE RESTRICT,
+  CONSTRAINT `devices_ibfk_2` FOREIGN KEY (`parentid`) REFERENCES `devices` (`ID`) ON DELETE SET NULL
+) ENGINE=InnoDB AUTO_INCREMENT=494 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+-- IOT_Course.mechanisms definition
+
+CREATE TABLE `mechanisms` (
+  `Id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `Id_type` bigint unsigned NOT NULL,
+  `Name` varchar(100) NOT NULL,
+  `Created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `id_device` bigint unsigned NOT NULL,
+  `disconnectedat` datetime DEFAULT NULL,
+  `passport_id` bigint unsigned NOT NULL,
+  UNIQUE KEY `Id` (`Id`),
+  KEY `mechanisms_type` (`id_device`,`Id_type`),
+  KEY `mechanisms_types_fk` (`Id_type`),
+  CONSTRAINT `mechanisms_ibfk_1` FOREIGN KEY (`id_device`) REFERENCES `devices` (`ID`) ON DELETE CASCADE,
+  CONSTRAINT `mechanisms_ibfk_2` FOREIGN KEY (`Id_type`) REFERENCES `devtypes` (`Id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=302 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+-- IOT_Course.properties definition
+
+CREATE TABLE `properties` (
+  `Id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `Id_type` bigint unsigned NOT NULL,
+  `Name` varchar(200) NOT NULL,
+  `DisplayAs` text,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`Id`),
+  KEY `properties_types_fk` (`Id_type`),
+  CONSTRAINT `properties_ibfk_1` FOREIGN KEY (`Id_type`) REFERENCES `devtypes` (`Id`) ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=641 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+-- IOT_Course.actions_running definition
+
+CREATE TABLE `actions_running` (
+  `id` binary(16) NOT NULL,
+  `id_template` bigint unsigned NOT NULL,
+  `id_area` bigint unsigned NOT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `terminated_at` datetime DEFAULT NULL,
+  `status` enum('planned','running','terminated') NOT NULL,
+  UNIQUE KEY `id` (`id`),
+  KEY `devices_actions_area` (`id_area`),
+  KEY `actions_running_templates` (`id_template`),
+  KEY `running_date` (`created_at`,`terminated_at`),
+  KEY `running_updated_status` (`updated_at`,`status`),
+  CONSTRAINT `actions_running_ibfk_2` FOREIGN KEY (`id_area`) REFERENCES `devices` (`id_area`) ON DELETE RESTRICT,
+  CONSTRAINT `actions_running_ibfk_3` FOREIGN KEY (`id_template`) REFERENCES `action_templates` (`Id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+-- IOT_Course.devices_telemetry definition
+
+CREATE TABLE `devices_telemetry` (
+  `Id_mech` bigint unsigned NOT NULL,
+  `Id_prop` bigint unsigned NOT NULL,
+  `value` double NOT NULL DEFAULT '0',
+  `Received_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`Id_mech`,`Id_prop`,`Received_at`),
+  KEY `devices_telemetry_properties_fk` (`Id_prop`),
+  CONSTRAINT `devices_telemetry_ibfk_1` FOREIGN KEY (`Id_mech`) REFERENCES `mechanisms` (`Id`) ON DELETE RESTRICT,
+  CONSTRAINT `devices_telemetry_ibfk_2` FOREIGN KEY (`Id_prop`) REFERENCES `properties` (`Id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+-- IOT_Course.intervals definition
+
+CREATE TABLE `intervals` (
+  `id_schedule` binary(16) NOT NULL,
+  `Id_prop` bigint unsigned NOT NULL,
+  `targetvalue` double NOT NULL,
+  `delta` double NOT NULL DEFAULT '10',
+  PRIMARY KEY (`id_schedule`,`Id_prop`),
+  KEY `properties_intervals` (`Id_prop`),
+  CONSTRAINT `intervals_ibfk_2` FOREIGN KEY (`Id_prop`) REFERENCES `properties` (`Id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
